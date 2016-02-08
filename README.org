@@ -1,0 +1,22 @@
+* Dmenu Mounter
+
+This program lets you select a partition using =dmenu= and mounts or unmounts it.
+
+** Usage
+
+To mount a partition:
+#+BEGIN_SRC sh
+./dmenu-mounter.py --mount
+#+END_SRC
+
+To unmount:
+#+BEGIN_SRC sh
+./dmenu-mounter.py --umount
+#+END_SRC
+
+** Dependencies
+
+To install this program's dependencies on Debian, run:
+#+BEGIN_SRC sh
+sudo apt-get install gksu python3-tabulate python3-notify2 libnotify-dev
+#+END_SRC

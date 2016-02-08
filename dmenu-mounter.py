@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 
-# Dependencies (on Debian:)
-#   apt-get install gksu python3-tabulate python3-notify2 libnotify-dev
-
 import os
 import stat
 import subprocess
