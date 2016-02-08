@@ -1,15 +1,15 @@
 * Dmenu Mounter
 
-This program lets you select a partition using =dmenu= and mounts or unmounts it.
+This program displays a list of partitions using =dmenu= and mounts or unmounts the one you select.
 
 ** Usage
 
-To mount a partition:
+Mount a partition:
 #+BEGIN_SRC sh
 ./dmenu-mounter.py --mount
 #+END_SRC
 
-To unmount:
+Unmount:
 #+BEGIN_SRC sh
 ./dmenu-mounter.py --umount
 #+END_SRC
