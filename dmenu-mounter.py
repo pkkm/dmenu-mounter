@@ -154,8 +154,8 @@ def render_partitions(partitions):
     return rendered_table.split("\n")
 
 def choose_partition(partitions, prompt):
-    """Ask the user to choose one of `partitions` (a list of `Partition`
-    objects). Return the choice, or `None` if something goes wrong.
+    """Let the user choose one of `partitions` (a list of `Partition`
+    objects). Return the choice or `None`.
     """
     options = OrderedDict(zip(render_partitions(partitions), partitions))
     return dmenu_choose(options, prompt)
