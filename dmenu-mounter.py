@@ -29,7 +29,7 @@ USE_NOTIFICATIONS = True
 try:
     import notify2
     notify2.init(PROGRAM_NAME)
-except:
+except ImportError:
     USE_NOTIFICATIONS = False
 
 
