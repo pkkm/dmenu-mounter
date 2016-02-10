@@ -226,8 +226,7 @@ def message(msg, msg_type):
     if msg_type == MessageType.Fatal:
         sys.exit(1)
 
-
-if __name__ == "__main__":
+def main():
     args = sys.argv[1:]
 
     if args == ["--mount"]:
@@ -270,3 +269,6 @@ if __name__ == "__main__":
     else:
         message("USAGE: " + __file__ + " {--mount | --umount}",
                 MessageType.Fatal)
+
+if __name__ == "__main__":
+    main()
