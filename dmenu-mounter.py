@@ -160,6 +160,13 @@ def choose_partition(partitions, prompt):
     options = OrderedDict(zip(render_partitions(partitions), partitions))
     return dmenu_choose(options, prompt)
 
+def get_partitions(filter_fn=lambda _: True):
+    """Return partitions on the system for which `filter_fn` returns
+    `True`, ordered from most to least recent.
+    """
+    partitions = list(filter(filter_fn, available_partitions()))
+    return sorted(partitions, key=lambda p: -p.device_mtime)
+
 def call_privileged_command(command):
     """Execute a command as root, using `sudo` or `gksudo` if necessary.
     Return the command's exit code.
@@ -227,12 +234,10 @@ if __name__ == "__main__":
         if os.path.ismount("/mnt"):
             message("Something is already mounted on /mnt.", MessageType.Fatal)
 
-        candidates = filter(lambda partition: not partition.mounted,
-                            available_partitions())
-        candidates = sorted(list(candidates),
-                            key=lambda partition: -partition.device_mtime)
+        selected = choose_partition(
+            get_partitions(lambda partition: not partition.mounted),
+            "Mount on /mnt")
 
-        selected = choose_partition(candidates, "Mount on /mnt")
         if selected is not None:
             result = call_privileged_command(
                 ["mount", "--", selected.device, "/mnt"])
@@ -244,11 +249,9 @@ if __name__ == "__main__":
                         MessageType.Error)
 
     elif args == ["--umount"]:
-        candidates = filter(lambda partition: (partition.mounted and
-                                               partition.mount_point != "/"),
-                            available_partitions())
-        candidates = sorted(list(candidates),
-                            key=lambda partition: -partition.device_mtime)
+        candidates = get_partitions(
+            lambda partition: (partition.mounted and
+                               partition.mount_point != "/"))
 
         if candidates:
             selected = choose_partition(candidates, "Unmount")
