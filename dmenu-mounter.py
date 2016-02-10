@@ -33,22 +33,6 @@ except:
     USE_NOTIFICATIONS = False
 
 
-class Partition:
-    """A class representing data about a partition."""
-
-    def __init__(self, device, label, mount_point, device_mtime):
-        self.device = device
-        self.label = label
-        self.mount_point = mount_point
-        self.device_mtime = device_mtime
-
-    @property
-    def mounted(self):
-        return self.mount_point is not None
-
-    def __str__(self):
-        return str(self.__dict__)
-
 def is_block_device(file):
     """Return True if `file` exists and is a block device."""
     return os.path.exists(file) and stat.S_ISBLK(os.stat(file).st_mode)
@@ -76,6 +60,22 @@ def mounted_devices():
             mounts[device] = mount_point
 
     return mounts
+
+class Partition:
+    """A class representing data about a partition."""
+
+    def __init__(self, device, label, mount_point, device_mtime):
+        self.device = device
+        self.label = label
+        self.mount_point = mount_point
+        self.device_mtime = device_mtime
+
+    @property
+    def mounted(self):
+        return self.mount_point is not None
+
+    def __str__(self):
+        return str(self.__dict__)
 
 def available_partitions():
     """Return a list of `Partition` objects describing the partitions in
