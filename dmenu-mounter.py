@@ -131,7 +131,7 @@ def default_if_none(value, default):
     else:
         return default
 
-def render_partitions(partitions, show_mount_points=True):
+def render_partitions(partitions):
     """Convert a list of `Partition` objects to a list of strings
     representing them as a table.
     """
