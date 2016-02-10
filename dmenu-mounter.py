@@ -20,17 +20,18 @@ import sys
 from collections import OrderedDict
 from enum import Enum
 
-PROGRAM_NAME = os.path.basename(__file__)
-
 from tabulate import tabulate
 
-# Try to use notifications.
-USE_NOTIFICATIONS = True
 try:
     import notify2
-    notify2.init(PROGRAM_NAME)
+    USE_NOTIFICATIONS = True
 except ImportError:
     USE_NOTIFICATIONS = False
+
+PROGRAM_NAME = os.path.basename(__file__)
+
+if USE_NOTIFICATIONS:
+    notify2.init(PROGRAM_NAME)
 
 
 def is_block_device(file):
