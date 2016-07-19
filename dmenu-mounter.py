@@ -21,7 +21,6 @@ from collections import OrderedDict
 from enum import Enum
 
 from tabulate import tabulate
-
 try:
     import notify2
     USE_NOTIFICATIONS = True
@@ -29,7 +28,6 @@ except ImportError:
     USE_NOTIFICATIONS = False
 
 PROGRAM_NAME = os.path.basename(__file__)
-
 if USE_NOTIFICATIONS:
     notify2.init(PROGRAM_NAME)
 
@@ -63,7 +61,7 @@ def mounted_devices():
     return mounts
 
 class Partition:
-    """A class representing data about a partition."""
+    """Stores data about a partition."""
 
     def __init__(self, device, label, mount_point, device_mtime):
         self.device = device
@@ -132,7 +130,7 @@ def default_if_none(value, default):
     else:
         return default
 
-def render_partitions(partitions):
+def partitions_to_table(partitions):
     """Convert a list of `Partition` objects to a list of strings
     representing them as a table.
     """
@@ -158,7 +156,7 @@ def choose_partition(partitions, prompt):
     """Let the user choose one of `partitions` (a list of `Partition`
     objects). Return the choice or `None`.
     """
-    options = OrderedDict(zip(render_partitions(partitions), partitions))
+    options = OrderedDict(zip(partitions_to_table(partitions), partitions))
     return dmenu_choose(options, prompt)
 
 def get_partitions(filter_fn=lambda _: True):
@@ -227,46 +225,63 @@ def message(msg, msg_type):
     if msg_type == MessageType.Fatal:
         sys.exit(1)
 
+def partition_to_string(partition):
+    """Return a string representation of `partition` for use in
+    notifications.
+    """
+    return partition.device
+
+def select_and_mount():
+    """Prompt the user for a partition and mount it."""
+
+    if os.path.ismount("/mnt"):
+        message("Something is already mounted on /mnt.", MessageType.Fatal)
+
+    selected = choose_partition(
+        get_partitions(lambda partition: not partition.mounted),
+        "Mount on /mnt")
+
+    if selected is not None:
+        result = call_privileged_command(
+            ["mount", "--", selected.device, "/mnt"])
+        if result == 0:
+            message("Mounted " + partition_to_string(selected) + " on /mnt.",
+                    MessageType.Info)
+        else:
+            message("Failed to mount " +
+                    partition_to_string(selected) + " on /mnt.",
+                    MessageType.Error)
+
+def select_and_unmount():
+    """Prompt the user for a mounted partition and unmount it."""
+
+    candidates = get_partitions(
+        lambda partition: (partition.mounted and
+                           partition.mount_point != "/"))
+
+    if candidates:
+        selected = choose_partition(candidates, "Unmount")
+        if selected is not None:
+            result = call_privileged_command(
+                ["umount", "--", selected.device])
+            if result == 0:
+                message("Unmounted " +
+                        partition_to_string(selected.device) + ".",
+                        MessageType.Info)
+            else:
+                message("Failed to unmount " +
+                        partition_to_string(selected.device) + ".",
+                        MessageType.Error)
+    else:
+        message("No partition to unmount.", MessageType.Info)
+
 def main():
     args = sys.argv[1:]
 
     if args == ["--mount"]:
-        if os.path.ismount("/mnt"):
-            message("Something is already mounted on /mnt.", MessageType.Fatal)
-
-        selected = choose_partition(
-            get_partitions(lambda partition: not partition.mounted),
-            "Mount on /mnt")
-
-        if selected is not None:
-            result = call_privileged_command(
-                ["mount", "--", selected.device, "/mnt"])
-            if result == 0:
-                message("Mounted " + selected.device + " on /mnt.",
-                        MessageType.Info)
-            else:
-                message("Failed to mount " + selected.device + " on /mnt.",
-                        MessageType.Error)
-
+        select_and_mount()
     elif args == ["--umount"]:
-        candidates = get_partitions(
-            lambda partition: (partition.mounted and
-                               partition.mount_point != "/"))
-
-        if candidates:
-            selected = choose_partition(candidates, "Unmount")
-            if selected is not None:
-                result = call_privileged_command(
-                    ["umount", "--", selected.device])
-                if result == 0:
-                    message("Unmounted " + selected.device + ".",
-                            MessageType.Info)
-                else:
-                    message("Failed to unmount " + selected.device + ".",
-                            MessageType.Error)
-        else:
-            message("No partition to unmount.", MessageType.Info)
-
+        select_and_unmount()
     else:
         message("USAGE: " + __file__ + " {--mount | --umount}",
                 MessageType.Fatal)
