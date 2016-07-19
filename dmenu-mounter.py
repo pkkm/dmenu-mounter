@@ -281,7 +281,7 @@ def select_and_mount():
                     MessageType.Info)
         else:
             message("Failed to mount " + partition_to_string(selected) +
-                    " on /mnt:\n" + result.output,
+                    " on /mnt:\n" + result.output.rstrip(),
                     MessageType.Error)
 
 def select_and_unmount():
@@ -300,8 +300,8 @@ def select_and_unmount():
                 message("Unmounted " + partition_to_string(selected) + ".",
                         MessageType.Info)
             else:
-                message("Failed to unmount " +
-                        partition_to_string(selected) + ":\n" + result.output,
+                message("Failed to unmount " + partition_to_string(selected) +
+                        ":\n" + result.output.rstrip(),
                         MessageType.Error)
     else:
         message("No partition to unmount.", MessageType.Info)
