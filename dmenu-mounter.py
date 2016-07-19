@@ -223,9 +223,10 @@ def call_privileged_command(command):
 class MessageType(Enum):
     Info, Error, Fatal = range(3)
 
-def message(msg, msg_type):
-    """Show a message to the user (as a desktop notification if possible,
-    otherwise on the terminal).
+def message(msg, msg_type, always_print=True):
+    """Show a message to the user in a desktop notification. If we can't
+    display notifications or `always_print` is true, print the message
+    to stdout or stderr.
     """
 
     # Show a notification if possible.
@@ -244,9 +245,13 @@ def message(msg, msg_type):
         except dbus.exceptions.DBusException:
             pass
 
-    # Otherwise, print to terminal.
-    if not notification_shown:
-        file = sys.stdout if msg_type == MessageType.Info else sys.stderr
+    # Print to stdout or stderr.
+    if not notification_shown or always_print:
+        if msg_type == MessageType.Info:
+            file = sys.stdout
+        else:
+            file = sys.stderr
+
         print(msg, file=file)
 
     if msg_type == MessageType.Fatal:
