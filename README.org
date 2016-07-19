@@ -6,12 +6,12 @@ This program displays a list of partitions using =dmenu= and mounts or unmounts 
 
 Mount a partition:
 #+BEGIN_SRC sh
-./dmenu-mounter.py --mount
+./dmenu-mounter.py mount
 #+END_SRC
 
 Unmount:
 #+BEGIN_SRC sh
-./dmenu-mounter.py --umount
+./dmenu-mounter.py unmount
 #+END_SRC
 
 ** Dependencies

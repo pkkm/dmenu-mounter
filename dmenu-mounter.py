@@ -13,6 +13,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""Displays a list of partitions using `dmenu` and mounts or unmounts
+the one you select.
+"""
+
+import argparse
 import os
 import stat
 import subprocess
@@ -296,16 +301,45 @@ def select_and_unmount():
     else:
         message("No partition to unmount.", MessageType.Info)
 
-def main():
-    args = sys.argv[1:]
+def parse_args():
+    """Parse command-line arguments and return a namespace."""
 
-    if args == ["--mount"]:
+    class MyArgumentParser(argparse.ArgumentParser):
+        """Like `argparse.ArgumentParser`, but uses `message` instead of
+        printing to stdout or stderr.
+        """
+
+        def _print_message(self, msg, file=sys.stderr):
+            if not msg:
+                return
+
+            if file == sys.stderr:
+                message_type = MessageType.Error
+            else:
+                message_type = MessageType.Info
+
+            message(msg.rstrip(), message_type)
+
+    parser = MyArgumentParser(
+        description=__doc__,
+        # Show argument defaults in help.
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    subparsers = parser.add_subparsers(dest="action", metavar="action")
+    subparsers.required = True
+
+    subparsers.add_parser("mount", help="Mount a partition.")
+    subparsers.add_parser("unmount", help="Unmount a partition.")
+
+    return parser.parse_args()
+
+def main():
+    args = parse_args()
+
+    if args.action == "mount":
         select_and_mount()
-    elif args == ["--umount"]:
+    elif args.action == "unmount":
         select_and_unmount()
-    else:
-        message("USAGE: " + __file__ + " {--mount | --umount}",
-                MessageType.Fatal)
 
 if __name__ == "__main__":
     main()
