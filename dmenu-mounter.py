@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# pylint: disable=missing-docstring
+# pylint: disable=missing-docstring,too-few-public-methods
 
 """Displays a list of partitions using `dmenu` and mounts or unmounts the one
 the user selects.
