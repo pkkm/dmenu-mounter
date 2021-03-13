@@ -1,22 +1,25 @@
 * Dmenu Mounter
 
-This program displays a list of partitions using =dmenu= and mounts or unmounts the one you select.
+This program displays a list of devices using ~dmenu~ and mounts or unmounts the one you select.
 
 ** Usage
 
-Mount a partition:
+Mount a device:
+
 #+BEGIN_SRC sh
 ./dmenu-mounter.py mount
 #+END_SRC
 
 Unmount:
+
 #+BEGIN_SRC sh
 ./dmenu-mounter.py unmount
 #+END_SRC
 
 ** Dependencies
 
-To install this program's dependencies on Debian, run:
+This program requires the ~dmenu~, ~lsblk~ and ~pkexec~ utilities, as well as the ~tabulate~ and ~notify2~ Python libraries. To install them on Debian, use:
+
 #+BEGIN_SRC sh
-sudo apt-get install dmenu policykit-1 python3-tabulate python3-notify2
+sudo apt-get install dmenu util-linux policykit-1 python3-tabulate python3-notify2
 #+END_SRC
