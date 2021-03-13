@@ -26,6 +26,7 @@ from collections import OrderedDict
 from enum import Enum
 
 from tabulate import tabulate
+import dbus
 try:
     import notify2
     USE_NOTIFICATIONS = True
@@ -112,7 +113,7 @@ def dmenu_choose(options, prompt=None):
     """
 
     dmenu_args = ["dmenu"]
-    if prompt != None:
+    if prompt is not None:
         dmenu_args.extend(["-p", prompt])
 
     dmenu_input = str.join("\n", options.keys())
@@ -213,7 +214,7 @@ def call_privileged_command(command):
         pass
 
     # When that fails and we're on a TTY, use `sudo`.
-    if os.stdin.isatty():
+    if sys.stdin.isatty():
         return CommandResult.run(["sudo", "--"] + command)
 
     # Finally, when everything failed, show an error.
