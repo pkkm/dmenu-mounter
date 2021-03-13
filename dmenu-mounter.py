@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # pylint: disable=missing-docstring
 
-"""Displays a list of partitions using `dmenu` and mounts or unmounts
-the one you select.
+"""Displays a list of partitions using `dmenu` and mounts or unmounts the one
+the user selects.
 """
 
 import argparse
