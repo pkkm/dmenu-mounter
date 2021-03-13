@@ -14,8 +14,8 @@ import sys
 from collections import OrderedDict
 from enum import Enum
 
+import dbus # Dependency of the notify2 library.
 import tabulate
-import dbus
 try:
     import notify2
     USE_NOTIFICATIONS = True
