@@ -254,7 +254,7 @@ def select_and_mount():
     """Prompt the user for a partition and mount it."""
 
     if os.path.ismount("/mnt"):
-        message("Something is already mounted on /mnt.", MessageType.Fatal)
+        message("Something is already mounted on /mnt", MessageType.Fatal)
 
     selected = choose_partition(
         get_partitions(lambda partition: not partition.mounted),
@@ -265,7 +265,7 @@ def select_and_mount():
             ["mount", "--", selected.device, "/mnt"])
         if result.success:
             message(
-                "Mounted {} on /mnt.".format(partition_to_string(selected)),
+                "Mounted {} on /mnt".format(partition_to_string(selected)),
                 MessageType.Info)
         else:
             message(
@@ -286,7 +286,7 @@ def select_and_unmount():
                 ["umount", "--", selected.device])
             if result.success:
                 message(
-                    "Unmounted {}.".format(partition_to_string(selected)),
+                    "Unmounted {}".format(partition_to_string(selected)),
                     MessageType.Info)
             else:
                 message(
@@ -294,7 +294,7 @@ def select_and_unmount():
                         partition_to_string(selected), result.output.rstrip()),
                     MessageType.Error)
     else:
-        message("No partition to unmount.", MessageType.Info)
+        message("No partition to unmount", MessageType.Info)
 
 def parse_args():
     """Parse command-line arguments and return a namespace."""
@@ -322,8 +322,8 @@ def parse_args():
     subparsers = parser.add_subparsers(dest="action", metavar="action")
     subparsers.required = True
 
-    subparsers.add_parser("mount", help="Mount a partition.")
-    subparsers.add_parser("unmount", help="Unmount a partition.")
+    subparsers.add_parser("mount", help="mount a partition")
+    subparsers.add_parser("unmount", help="unmount a partition")
 
     return parser.parse_args()
 
