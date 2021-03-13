@@ -142,7 +142,7 @@ def dmenu_choose(options, prompt=None):
 
     process = subprocess.run(
         args,
-        stdin=str.join("\n", options.keys()),
+        input=str.join("\n", options.keys()),
         stdout=subprocess.PIPE,
         encoding="utf-8")
 
