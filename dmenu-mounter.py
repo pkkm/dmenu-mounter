@@ -272,7 +272,9 @@ def select_and_mount():
 def select_and_unmount():
     """Prompt the user for a mounted device and unmount it."""
 
-    candidates = [d for d in handled_devices() if d.mounted]
+    candidates = [
+        d for d in handled_devices()
+        if d.mounted and d.mountpoint != "/"]
     if not candidates:
         message("No device to unmount", MessageType.Info)
         return
