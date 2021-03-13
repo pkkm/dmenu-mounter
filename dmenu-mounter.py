@@ -106,29 +106,26 @@ def available_partitions():
 def dmenu_choose(options, prompt=None):
     """Launch dmenu for the user to choose one of `options`.
 
-    `options` should be a dict or an OrderedDict with option names and
-    their associated values.
+    `options` should be a dict or OrderedDict with option names and their
+    associated values.
 
-    When the user doesn't select anything, or tries to select
-    something that's not in `options`, return `None`.
+    When the user doesn't select anything or tries to select something that's
+    not in `options`, return `None`.
     """
 
-    dmenu_args = ["dmenu"]
+    args = ["dmenu"]
     if prompt is not None:
-        dmenu_args.extend(["-p", prompt])
+        args.extend(["-p", prompt])
 
-    dmenu_input = str.join("\n", options.keys())
+    process = subprocess.run(
+        args,
+        stdin=str.join("\n", options.keys()),
+        stdout=subprocess.PIPE,
+        encoding="utf-8")
 
-    dmenu = subprocess.Popen(
-        dmenu_args, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-        universal_newlines=True)
-
-    stdout, _ = dmenu.communicate(dmenu_input)
-
-    if dmenu.returncode == 0:
-        return options.get(stdout.rstrip("\n"), None)
-    else:
-        return None
+    if process.returncode == 0:
+        return options.get(process.stdout.rstrip("\n"), None)
+    return None
 
 def default_if_none(value, default):
     """Return `value` if it's not `None`, otherwise `default`."""
