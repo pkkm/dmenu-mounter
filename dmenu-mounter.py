@@ -22,7 +22,7 @@ try:
 except ImportError:
     USE_NOTIFICATIONS = False
 
-PROGRAM_NAME = os.path.basename(__file__)
+PROGRAM_NAME = "dmenu-mounter"
 if USE_NOTIFICATIONS:
     notify2.init(PROGRAM_NAME)
 
