@@ -88,7 +88,8 @@ def handled_devices():
 
     process = subprocess.run(
         ["lsblk", "--json", "--list", "--output",
-         "NAME,PATH,TYPE,FSTYPE,LABEL,UUID,MOUNTPOINT,SIZE"],
+         "PATH,FSTYPE,LABEL,UUID,MOUNTPOINT,SIZE"],
+        # Other interesting `fsblk` columns: NAME, TYPE.
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT)
 
