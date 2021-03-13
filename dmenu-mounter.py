@@ -126,6 +126,29 @@ def available_partitions():
 
     return partitions
 
+def partitions_to_table(partitions):
+    """Convert a list of `Partition` objects to a list of strings representing
+    them as a table.
+    """
+
+    any_mounted = any(partition.mounted for partition in partitions)
+
+    def partition_to_table_row(partition):
+        row = [partition.device, partition.label]
+        if any_mounted:
+            row.append(
+                partition.mount_point
+                if partition.mount_point is not None
+                else "")
+        return row
+
+    table = map(partition_to_table_row, partitions)
+
+    rendered_table = tabulate.tabulate(
+        table, tablefmt="plain", stralign="left", numalign="left")
+
+    return rendered_table.split("\n")
+
 def dmenu_choose(options, prompt=None):
     """Launch dmenu for the user to choose one of `options`.
 
@@ -149,29 +172,6 @@ def dmenu_choose(options, prompt=None):
     if process.returncode == 0:
         return options.get(process.stdout.rstrip("\n"), None)
     return None
-
-def partitions_to_table(partitions):
-    """Convert a list of `Partition` objects to a list of strings representing
-    them as a table.
-    """
-
-    any_mounted = any(partition.mounted for partition in partitions)
-
-    def partition_to_table_row(partition):
-        row = [partition.device, partition.label]
-        if any_mounted:
-            row.append(
-                partition.mount_point
-                if partition.mount_point is not None
-                else "")
-        return row
-
-    table = map(partition_to_table_row, partitions)
-
-    rendered_table = tabulate.tabulate(
-        table, tablefmt="plain", stralign="left", numalign="left")
-
-    return rendered_table.split("\n")
 
 def choose_partition(partitions, prompt):
     """Let the user choose one of `partitions` (a list of `Partition` objects).
@@ -332,7 +332,7 @@ def main():
 
     if args.action == "mount":
         select_and_mount()
-    elif args.action == "unmount":
+    else:
         select_and_unmount()
 
 if __name__ == "__main__":
