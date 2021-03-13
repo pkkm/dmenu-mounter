@@ -243,51 +243,55 @@ def call_privileged_command(command):
     return None
 
 def select_and_mount():
-    """Prompt the user for a device and mount it."""
+    """Prompt the user for a device that's not mounted and mount it."""
 
     if os.path.ismount("/mnt"):
         message("Something is already mounted on /mnt", MessageType.Fatal)
 
-    # TODO what if there's nothing to mount?
+    candidates = [d for d in handled_devices() if not d.mounted]
+    if not candidates:
+        message("No device to mount", MessageType.Info)
+        return
 
-    selected = choose_device(
-        [d for d in handled_devices() if not d.mounted],
-        "Mount on /mnt")
+    selected = choose_device(candidates, "Mount on /mnt")
+    if selected is None:
+        return
 
-    if selected is not None:
-        result = call_privileged_command(
-            ["mount", "--", selected.path, "/mnt"])
-        if result.returncode == 0:
-            message(
-                "Mounted {} on /mnt".format(selected.to_short_string()),
-                MessageType.Info)
-        else:
-            message(
-                "Failed to mount {} on /mnt:\n{}".format(
-                    selected.to_stort_string(), result.stdout.rstrip()),
-                MessageType.Error)
+    result = call_privileged_command(
+        ["mount", "--", selected.path, "/mnt"])
+    if result.returncode == 0:
+        message(
+            "Mounted {} on /mnt".format(selected.to_short_string()),
+            MessageType.Info)
+    else:
+        message(
+            "Failed to mount {} on /mnt:\n{}".format(
+                selected.to_stort_string(), result.stdout.rstrip()),
+            MessageType.Error)
 
 def select_and_unmount():
     """Prompt the user for a mounted device and unmount it."""
 
     candidates = [d for d in handled_devices() if d.mounted]
-
-    if candidates:
-        selected = choose_device(candidates, "Unmount")
-        if selected is not None:
-            result = call_privileged_command(
-                ["umount", "--", selected.path])
-            if result.returncode == 0:
-                message(
-                    "Unmounted {}".format(selected.to_short_string()),
-                    MessageType.Info)
-            else:
-                message(
-                    "Failed to unmount {}:\n{}".format(
-                        selected.to_short_string(), result.stdout.rstrip()),
-                    MessageType.Error)
-    else:
+    if not candidates:
         message("No device to unmount", MessageType.Info)
+        return
+
+    selected = choose_device(candidates, "Unmount")
+    if selected is None:
+        return
+
+    result = call_privileged_command(
+        ["umount", "--", selected.path])
+    if result.returncode == 0:
+        message(
+            "Unmounted {}".format(selected.to_short_string()),
+            MessageType.Info)
+    else:
+        message(
+            "Failed to unmount {}:\n{}".format(
+                selected.to_short_string(), result.stdout.rstrip()),
+            MessageType.Error)
 
 def parse_args():
     """Parse command-line arguments and return a namespace."""
