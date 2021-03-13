@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
 # pylint: disable=missing-docstring,too-few-public-methods
 
-"""Displays a list of partitions using `dmenu` and mounts or unmounts the one
-the user selects.
+"""Displays a list of devices using `dmenu` and mounts or unmounts the one the
+user selects.
 """
 
 import argparse
+import json
 import os
 import shutil
-import stat
 import subprocess
 import sys
+
 from collections import OrderedDict
+from dataclasses import dataclass
+from typing import Optional
 from enum import Enum
 
 import dbus # Dependency of the notify2 library.
@@ -56,86 +59,112 @@ def message(msg, msg_type, always_print=True):
     if msg_type == MessageType.Fatal:
         sys.exit(1)
 
-def is_block_device(file):
-    """Return True if `file` exists and is a block device."""
-    return os.path.exists(file) and stat.S_ISBLK(os.stat(file).st_mode)
+@dataclass
+class Device:
+    """Data about a block device."""
 
-def mounted_devices():
-    """Return a dict with mounted block devices and their mount points.
-    Example result: {"/dev/sda4": "/", "/dev/sdb1": "/mnt"}.
-    """
-
-    mounts = {}
-
-    with open("/etc/mtab") as mtab:
-        for line in mtab:
-            parts = line.rstrip("\n").split(' ')
-
-            if len(parts) < 2:
-                continue
-
-            device, mount_point, *_ = parts
-
-            if not (os.path.exists(device) and is_block_device(device)):
-                continue
-
-            device = os.path.realpath(device)
-            mounts[device] = mount_point
-
-    return mounts
-
-class Partition:
-    """Stores data about a partition."""
-
-    def __init__(self, device, label, mount_point, device_mtime):
-        self.device = device
-        self.label = label
-        self.mount_point = mount_point
-        self.device_mtime = device_mtime
+    path: str
+    filesystem: Optional[str]
+    label: Optional[str]
+    uuid: Optional[str]
+    mountpoint: Optional[str]
+    size: str
+    mtime: float
 
     @property
     def mounted(self):
-        return self.mount_point is not None
+        return self.mountpoint is not None
 
-    def __str__(self):
-        return str(self.__dict__)
+    def to_short_string(self):
+        """Return a string representation for use in notifications."""
+        if self.label is None:
+            return self.path
+        return "{} ({})".format(self.path, self.label)
 
-def available_partitions():
-    """Return a list of `Partition` objects describing the partitions in the
-    system."""
-
-    mounts = mounted_devices()
-    partitions = []
-
-    labels_dir = "/dev/disk/by-label"
-    for label in os.listdir(labels_dir):
-        device = os.path.realpath(os.path.join(labels_dir, label))
-        mount_point = mounts.get(device, None)
-        device_mtime = os.path.getmtime(device)
-
-        partitions.append(Partition(
-            label=label, device=device,
-            mount_point=mount_point, device_mtime=device_mtime))
-
-    return partitions
-
-def partitions_to_table(partitions):
-    """Convert a list of `Partition` objects to a list of strings representing
-    them as a table.
+def handled_devices():
+    """Return a list of `Device` objects representing all block devices we can
+    do something with, ordered from the most recent mtime.
     """
 
-    any_mounted = any(partition.mounted for partition in partitions)
+    process = subprocess.run(
+        ["lsblk", "--json", "--list", "--output",
+         "NAME,PATH,TYPE,FSTYPE,LABEL,UUID,MOUNTPOINT,SIZE"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT)
 
-    def partition_to_table_row(partition):
-        row = [partition.device, partition.label]
-        if any_mounted:
-            row.append(
-                partition.mount_point
-                if partition.mount_point is not None
-                else "")
-        return row
+    if process.returncode != 0:
+        message(
+            "Can't get block devices with lsblk:\n{}".format(process.stdout),
+            MessageType.Fatal)
 
-    table = map(partition_to_table_row, partitions)
+    devices_json = json.loads(process.stdout)
+
+    result = []
+    for device in devices_json["blockdevices"]:
+        # Skip disks, extended partitions and swap.
+        if device["fstype"] is None or device["fstype"] == "swap":
+            continue
+
+        try:
+            mtime = os.path.getmtime(device["path"])
+        except OSError:
+            mtime = None
+
+        result.append(Device(
+            path=device["path"],
+            filesystem=device["fstype"],
+            label=device["label"],
+            uuid=device["uuid"],
+            mountpoint=device["mountpoint"],
+            size=device["size"],
+            mtime=mtime))
+
+    return sorted(result, key=lambda d: d.mtime, reverse=True)
+
+def prepare_table(table, delete_none_columns=True):
+    """Assuming that `table` is a list of lists representing a table, return the
+    table with columns that contain only `None` removed, and remaining cells
+    that are `None` replaced with the empty string.
+    """
+
+    if not table:
+        return table
+
+    n_columns = len(table[0])
+
+    if delete_none_columns:
+        should_delete_column = [True] * n_columns
+        for i_column in range(n_columns):
+            for row in table:
+                if row[i_column] is not None:
+                    should_delete_column[i_column] = False
+    else:
+        should_delete_column = [False] * n_columns
+
+    result = []
+    for row in table:
+        new_row = []
+        for i_column, cell in enumerate(row):
+            if should_delete_column[i_column]:
+                continue
+
+            if cell is None:
+                new_row.append("")
+            else:
+                new_row.append(cell)
+
+        result.append(new_row)
+
+    return result
+
+def devices_to_table(devices):
+    """Convert a list of `Device` objects to a list of strings presenting them
+    as a table.
+    """
+
+    table = prepare_table([
+        [d.path, d.label, d.mountpoint, d.filesystem, d.size]
+        for d in devices])
 
     rendered_table = tabulate.tabulate(
         table, tablefmt="plain", stralign="left", numalign="left")
@@ -166,20 +195,12 @@ def dmenu_choose(options, prompt=None):
         return options.get(process.stdout.rstrip("\n"), None)
     return None
 
-def choose_partition(partitions, prompt):
-    """Let the user choose one of `partitions` (a list of `Partition` objects).
+def choose_device(devices, prompt):
+    """Let the user choose one of `devices` (a list of `Device` objects).
     Return the choice or `None`.
     """
-    options = OrderedDict(zip(partitions_to_table(partitions), partitions))
+    options = OrderedDict(zip(devices_to_table(devices), devices))
     return dmenu_choose(options, prompt)
-
-def get_partitions(filter_fn=lambda _: True):
-    """Return partitions on the system for which `filter_fn` returns `True`,
-    ordered from most to least recent.
-
-    """
-    partitions = list(filter(filter_fn, available_partitions()))
-    return sorted(partitions, key=lambda p: -p.device_mtime)
 
 def call_privileged_command(command):
     """Execute a command as root, using `sudo` or `pkexec` if necessary. Return
@@ -221,56 +242,52 @@ def call_privileged_command(command):
 
     return None
 
-def partition_to_string(partition):
-    """Return a string representation of `partition` for use in notifications.
-    """
-    return partition.device + " (" + partition.label + ")"
-
 def select_and_mount():
-    """Prompt the user for a partition and mount it."""
+    """Prompt the user for a device and mount it."""
 
     if os.path.ismount("/mnt"):
         message("Something is already mounted on /mnt", MessageType.Fatal)
 
-    selected = choose_partition(
-        get_partitions(lambda partition: not partition.mounted),
+    # TODO what if there's nothing to mount?
+
+    selected = choose_device(
+        [d for d in handled_devices() if not d.mounted],
         "Mount on /mnt")
 
     if selected is not None:
         result = call_privileged_command(
-            ["mount", "--", selected.device, "/mnt"])
+            ["mount", "--", selected.path, "/mnt"])
         if result.returncode == 0:
             message(
-                "Mounted {} on /mnt".format(partition_to_string(selected)),
+                "Mounted {} on /mnt".format(selected.to_short_string()),
                 MessageType.Info)
         else:
             message(
                 "Failed to mount {} on /mnt:\n{}".format(
-                    partition_to_string(selected), result.stdout.rstrip()),
+                    selected.to_stort_string(), result.stdout.rstrip()),
                 MessageType.Error)
 
 def select_and_unmount():
-    """Prompt the user for a mounted partition and unmount it."""
+    """Prompt the user for a mounted device and unmount it."""
 
-    candidates = get_partitions(
-        lambda p: p.mounted and p.mount_point != "/")
+    candidates = [d for d in handled_devices() if d.mounted]
 
     if candidates:
-        selected = choose_partition(candidates, "Unmount")
+        selected = choose_device(candidates, "Unmount")
         if selected is not None:
             result = call_privileged_command(
-                ["umount", "--", selected.device])
+                ["umount", "--", selected.path])
             if result.returncode == 0:
                 message(
-                    "Unmounted {}".format(partition_to_string(selected)),
+                    "Unmounted {}".format(selected.to_short_string()),
                     MessageType.Info)
             else:
                 message(
                     "Failed to unmount {}:\n{}".format(
-                        partition_to_string(selected), result.stdout.rstrip()),
+                        selected.to_short_string(), result.stdout.rstrip()),
                     MessageType.Error)
     else:
-        message("No partition to unmount", MessageType.Info)
+        message("No device to unmount", MessageType.Info)
 
 def parse_args():
     """Parse command-line arguments and return a namespace."""
@@ -298,8 +315,8 @@ def parse_args():
     subparsers = parser.add_subparsers(dest="action", metavar="action")
     subparsers.required = True
 
-    subparsers.add_parser("mount", help="mount a partition")
-    subparsers.add_parser("unmount", help="unmount a partition")
+    subparsers.add_parser("mount", help="mount a device")
+    subparsers.add_parser("unmount", help="unmount a device")
 
     return parser.parse_args()
 
