@@ -188,65 +188,48 @@ def get_partitions(filter_fn=lambda _: True):
     partitions = list(filter(filter_fn, available_partitions()))
     return sorted(partitions, key=lambda p: -p.device_mtime)
 
-class CommandResult:
-    """Stores data about the result of executing a command."""
-
-    def __init__(self, return_code, output):
-        self.return_code = return_code
-        self.output = output
-
-    @classmethod
-    def run(cls, args):
-        """Run a command specified by `args` and return a `CommandResult`
-        object.
-        """
-        result = subprocess.run(
-            args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            universal_newlines=True)
-        return cls(result.returncode, result.stdout)
-
-    @property
-    def success(self):
-        return self.return_code == 0
-
-    def __str__(self):
-        return str(self.__dict__)
-
 def call_privileged_command(command):
-    """Execute a command as root, using `sudo` or `pkexec` if necessary.
-    Return a `CommandResult` object.
+    """Execute a command as root, using `sudo` or `pkexec` if necessary. Return
+    a `subprocess.CompletedProcess` whose `stderr` member contains the stdout
+    and stderr of the command.
     """
+
+    def run(args):
+        return subprocess.run(
+            args,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT)
 
     # If we have root privileges, just call `command`.
     if os.geteuid() == 0:
-        return CommandResult.run(command)
+        return run(command)
 
     # Try to use `sudo`'s cached credentials (without a password).
     if subprocess.call(["sudo", "-n", "-v"], stderr=subprocess.DEVNULL) == 0:
-        return CommandResult.run(["sudo", "--"] + command)
+        return run(["sudo", "--"] + command)
 
     # Try `pkexec`.
     try:
         program_path = shutil.which(command[0])
         if program_path is not None:
-            return CommandResult.run(["pkexec", program_path] + command[1:])
+            return run(["pkexec", program_path] + command[1:])
     except FileNotFoundError:
         pass
 
     # When that fails and we're on a TTY, use `sudo`.
     if sys.stdin.isatty():
-        return CommandResult.run(["sudo", "--"] + command)
+        return run(["sudo", "--"] + command)
 
     # Finally, when everything failed, show an error.
     message(
         "Can't execute commands as root. Run this script as root, in a " +
-        "terminal, or install pkexec.", MessageType.Fatal)
+        "terminal, or install pkexec.",
+        MessageType.Fatal)
 
     return None
 
 def partition_to_string(partition):
-    """Return a string representation of `partition` for use in
-    notifications.
+    """Return a string representation of `partition` for use in notifications.
     """
     return partition.device + " (" + partition.label + ")"
 
@@ -263,14 +246,14 @@ def select_and_mount():
     if selected is not None:
         result = call_privileged_command(
             ["mount", "--", selected.device, "/mnt"])
-        if result.success:
+        if result.returncode == 0:
             message(
                 "Mounted {} on /mnt".format(partition_to_string(selected)),
                 MessageType.Info)
         else:
             message(
                 "Failed to mount {} on /mnt:\n{}".format(
-                    partition_to_string(selected), result.output.rstrip()),
+                    partition_to_string(selected), result.stdout.rstrip()),
                 MessageType.Error)
 
 def select_and_unmount():
@@ -284,14 +267,14 @@ def select_and_unmount():
         if selected is not None:
             result = call_privileged_command(
                 ["umount", "--", selected.device])
-            if result.success:
+            if result.returncode == 0:
                 message(
                     "Unmounted {}".format(partition_to_string(selected)),
                     MessageType.Info)
             else:
                 message(
                     "Failed to unmount {}:\n{}".format(
-                        partition_to_string(selected), result.output.rstrip()),
+                        partition_to_string(selected), result.stdout.rstrip()),
                     MessageType.Error)
     else:
         message("No partition to unmount", MessageType.Info)
