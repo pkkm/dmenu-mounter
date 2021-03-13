@@ -19,6 +19,7 @@ the one you select.
 
 import argparse
 import os
+import shutil
 import stat
 import subprocess
 import sys
@@ -195,7 +196,7 @@ class CommandResult:
         return str(self.__dict__)
 
 def call_privileged_command(command):
-    """Execute a command as root, using `sudo` or `gksudo` if necessary.
+    """Execute a command as root, using `sudo` or `pkexec` if necessary.
     Return a `CommandResult` object.
     """
 
@@ -207,9 +208,12 @@ def call_privileged_command(command):
     if subprocess.call(["sudo", "-n", "-v"], stderr=subprocess.DEVNULL) == 0:
         return CommandResult.run(["sudo", "--"] + command)
 
-    # Try `gksudo`.
+    # Try `pkexec`.
     try:
-        return CommandResult.run(["gksudo", "--"] + command)
+        program_path = shutil.which(command[0])
+        if program_path is not None:
+            return CommandResult.run(
+                ["pkexec", program_path] + command[1:])
     except FileNotFoundError:
         pass
 
@@ -218,8 +222,10 @@ def call_privileged_command(command):
         return CommandResult.run(["sudo", "--"] + command)
 
     # Finally, when everything failed, show an error.
-    message("Can't execute commands as root. Run this script as root, in a "
-            "terminal, or install gksu.", MessageType.Fatal)
+    message("Can't execute commands as root. Run this script as root, in a " +
+            "terminal, or install pkexec.", MessageType.Fatal)
+
+    return None
 
 class MessageType(Enum):
     Info, Error, Fatal = range(3)

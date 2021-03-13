@@ -18,5 +18,5 @@ Unmount:
 
 To install this program's dependencies on Debian, run:
 #+BEGIN_SRC sh
-sudo apt-get install gksu python3-tabulate python3-notify2
+sudo apt-get install policykit-1 python3-tabulate python3-notify2
 #+END_SRC
