@@ -35,7 +35,6 @@ def message(msg, msg_type, always_print=True):
     stderr.
     """
 
-    # Show a notification if possible.
     notification_shown = False
     if USE_NOTIFICATIONS:
         try:
@@ -51,14 +50,8 @@ def message(msg, msg_type, always_print=True):
         except dbus.exceptions.DBusException:
             pass
 
-    # Print to stdout or stderr.
     if not notification_shown or always_print:
-        if msg_type == MessageType.Info:
-            file = sys.stdout
-        else:
-            file = sys.stderr
-
-        print(msg, file=file)
+        print(msg, file=sys.stderr)
 
     if msg_type == MessageType.Fatal:
         sys.exit(1)
