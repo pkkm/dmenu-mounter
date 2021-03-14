@@ -164,7 +164,7 @@ def devices_to_table(devices):
     """
 
     table = prepare_table([
-        [d.path, d.label, d.mountpoint, d.filesystem, d.size]
+        [d.filesystem, d.size, d.path, d.label, d.mountpoint]
         for d in devices])
 
     rendered_table = tabulate.tabulate(
