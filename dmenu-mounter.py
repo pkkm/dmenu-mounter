@@ -6,6 +6,7 @@ user selects.
 """
 
 import argparse
+import ast
 import json
 import os
 import shutil
@@ -14,7 +15,7 @@ import sys
 
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Any, Dict
 from enum import Enum
 
 import dbus # Dependency of the notify2 library.
@@ -243,7 +244,13 @@ def call_privileged_command(command):
 
     return None
 
-def select_and_mount():
+@dataclass
+class MountRule:
+    """Rule to apply when mounting a device."""
+    condition: Any
+    args: Dict[str, str]
+
+def select_and_mount(rules):
     """Prompt the user for a device that's not mounted and mount it."""
 
     if os.path.ismount("/mnt"):
@@ -258,8 +265,27 @@ def select_and_mount():
     if selected is None:
         return
 
+    extra_args = []
+
+    for rule in rules:
+        try:
+            matches = eval(rule.condition, {}, { # pylint: disable=eval-used
+                "path": selected.path,
+                "filesystem": selected.filesystem,
+                "label": selected.label,
+                "uuid": selected.uuid})
+        except Exception as ex: # pylint: disable=broad-except
+            message(
+                "Can't evaluate mount rule condition:\n{}: {}".format(
+                    type(ex).__name__, ex),
+                MessageType.Fatal)
+
+        if matches:
+            extra_args = rule.args.get("mount_args", [])
+            break
+
     result = call_privileged_command(
-        ["mount", "--", selected.path, "/mnt"])
+        ["mount"] + extra_args + ["--", selected.path, "/mnt"])
     if result.returncode == 0:
         message(
             "Mounted {} on /mnt".format(selected.to_short_string()),
@@ -315,15 +341,69 @@ def parse_args():
 
             message(msg.rstrip(), message_type)
 
+    def parse_mount_rule(rule):
+        """Parse a mount rule string into a `MountRule` object."""
+
+        parts = [p.strip() for p in rule.split("::")]
+
+        if len(parts) != 2:
+            raise argparse.ArgumentTypeError(
+                "Rule must have the form `condition::args`")
+
+        condition, args = parts
+
+        try:
+            condition_complied = compile(condition, "<string>", "eval")
+        except Exception as ex: # pylint: disable=broad-except
+            raise argparse.ArgumentTypeError(
+                "Can't compile the condition: {}: {}".format(
+                    type(ex).__name__, ex))
+
+        try:
+            args_dict = ast.literal_eval(args)
+        except Exception as ex: # pylint: disable=broad-except
+            raise argparse.ArgumentTypeError(
+                "Can't evaluate the args: {}: {}".format(type(ex).__name__, ex))
+
+        if not isinstance(args_dict, dict):
+            raise argparse.ArgumentTypeError(
+                "Params must be a dict")
+
+        for key, value in args_dict.items():
+            if key == "mount_args":
+                if not isinstance(value, list):
+                    raise argparse.ArgumentTypeError(
+                        "The value of `mount_args` must be a list of strings")
+            else:
+                raise argparse.ArgumentTypeError(
+                    "Unknown key in args: {}".format(key))
+
+        return MountRule(condition_complied, args_dict)
+
     parser = MessageArgumentParser(
         description=__doc__,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    subparsers = parser.add_subparsers(dest="action", metavar="action")
-    subparsers.required = True
+    subparsers = parser.add_subparsers(
+        dest="action", metavar="action", required=True)
 
-    subparsers.add_parser("mount", help="mount a device")
-    subparsers.add_parser("unmount", help="unmount a device")
+    mount_rule_help = """Mount rules are of the form `condition::args`, e.g.
+    `filesystem in ["vfat", "ntfs"] :: {"mount_args": ["-o",
+    "uid=user,gid=user,fmask=133,dmask=022"]}`. The condition is a Python
+    expression which will be evaluated when a device is mounted. It can make use
+    of the variables `path`, `filesystem`, `label` and `uuid`, and it must
+    evaluate to `True` or `False`, depending on whether the args should be
+    applied. The args must be a Python dict literal with the key `mount_args`
+    whose value is an list of extra arguments to `mount`."""
+
+    mount_cmd = subparsers.add_parser(
+        "mount", help="mount a device", epilog=mount_rule_help)
+
+    mount_cmd.add_argument(
+        "--rule", action="append", type=parse_mount_rule,
+        help="mount rule, see below")
+
+    _unmount_cmd = subparsers.add_parser("unmount", help="unmount a device")
 
     return parser.parse_args()
 
@@ -331,7 +411,7 @@ def main():
     args = parse_args()
 
     if args.action == "mount":
-        select_and_mount()
+        select_and_mount(args.rule)
     else:
         select_and_unmount()
 
