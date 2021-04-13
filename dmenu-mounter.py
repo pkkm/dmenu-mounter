@@ -12,6 +12,7 @@ import os
 import shutil
 import subprocess
 import sys
+import textwrap
 
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -380,6 +381,20 @@ def parse_args():
 
         return MountRule(condition_complied, args_dict)
 
+    def format_epilog_section(text, header=None, indent=0, width=79):
+        """Prepare a section in the epilog for printing with
+        `argparse.RawDescriptionHelpFormatter` by wrapping the paragraphs
+        separately, as well as optionally adding a header and indenting the
+        paragraphs.
+        """
+        paragraphs = [textwrap.dedent(p) for p in text.split("\n\n")]
+        return (header + "\n" if header is not None else "") + (
+            "\n\n".join(
+                textwrap.fill(
+                    p, width=width,
+                    initial_indent=" " * indent, subsequent_indent=" " * indent)
+                for p in paragraphs))
+
     parser = MessageArgumentParser(
         description=__doc__,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -387,17 +402,23 @@ def parse_args():
     subparsers = parser.add_subparsers(
         dest="action", metavar="action", required=True)
 
-    mount_rule_help = """Mount rules are of the form `condition::args`, e.g.
-    `filesystem in ["vfat", "ntfs"] :: {"mount_args": ["-o",
-    "uid=user,gid=user,fmask=133,dmask=022"]}`. The condition is a Python
-    expression which will be evaluated when a device is mounted. It can make use
-    of the variables `path`, `filesystem`, `label` and `uuid`, and it must
-    evaluate to `True` or `False`, depending on whether the args should be
-    applied. The args must be a Python dict literal with the key `mount_args`
-    whose value is an list of extra arguments to `mount`."""
+    mount_rule_help = """\
+    Mount rules are of the form `condition::args`, e.g. `filesystem in ["vfat",
+    "ntfs"] :: {"mount_args": ["-o", "uid=user,gid=user,fmask=133,dmask=022"]}`.
+
+    The condition is a Python expression which will be evaluated when a device
+    is mounted. It can make use of the variables `path`, `filesystem`, `label`
+    and `uuid`, and it must evaluate to `True` or `False`, depending on whether
+    the args should be applied.
+
+    The args must be a Python dict literal with the key `mount_args` whose value
+    is an list of extra arguments to `mount`."""
 
     mount_cmd = subparsers.add_parser(
-        "mount", help="mount a device", epilog=mount_rule_help)
+        "mount", help="mount a device",
+        epilog=format_epilog_section(
+            mount_rule_help, header="mount rules:", indent=2),
+        formatter_class=argparse.RawDescriptionHelpFormatter)
 
     mount_cmd.add_argument(
         "--rule", action="append", type=parse_mount_rule,
