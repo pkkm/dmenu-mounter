@@ -1,6 +1,8 @@
-* Dmenu Mounter
+* dmenu-mounter
 
 This program displays a list of devices using ~dmenu~ and mounts or unmounts the one you select.
+
+[[./screenshot.png]]
 
 ** Usage
 
