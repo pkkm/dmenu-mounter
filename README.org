@@ -16,6 +16,15 @@ Unmount:
 ./dmenu-mounter.py unmount
 #+END_SRC
 
+The ~mount~ action accepts "mount rules", e.g.
+
+#+BEGIN_SRC sh
+./dmenu-mounter.py mount --rule \
+    'filesystem == "vfat" :: {"mount_args": ["-o", "uid=user,gid=user"]}'
+#+END_SRC
+
+See ~./dmenu-mounter.py mount --help~ for more details.
+
 ** Dependencies
 
 This program requires the ~dmenu~, ~lsblk~ and ~pkexec~ utilities, as well as the ~tabulate~ and ~notify2~ Python libraries. To install them on Debian, use:
