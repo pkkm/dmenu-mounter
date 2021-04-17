@@ -345,11 +345,11 @@ def parse_args():
     def parse_mount_rule(rule):
         """Parse a mount rule string into a `MountRule` object."""
 
-        parts = [p.strip() for p in rule.split("::")]
+        parts = [p.strip() for p in rule.split(" :: ")]
 
         if len(parts) != 2:
             raise argparse.ArgumentTypeError(
-                "Rule must have the form `condition::args`")
+                "Rule must have the form `condition :: args`")
 
         condition, args = parts
 
@@ -403,8 +403,9 @@ def parse_args():
         dest="action", metavar="action", required=True)
 
     mount_rule_help = """\
-    Mount rules are of the form `condition::args`, e.g. `filesystem in ["vfat",
-    "ntfs"] :: {"mount_args": ["-o", "uid=user,gid=user,fmask=133,dmask=022"]}`.
+    Mount rules are of the form `condition :: args`, e.g. `filesystem in
+    ["vfat", "ntfs"] :: {"mount_args": ["-o",
+    "uid=user,gid=user,fmask=133,dmask=022"]}`.
 
     The condition is a Python expression which will be evaluated when a device
     is mounted. It can make use of the variables `path`, `filesystem`, `label`
