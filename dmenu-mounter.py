@@ -422,7 +422,7 @@ def parse_args():
         formatter_class=argparse.RawDescriptionHelpFormatter)
 
     mount_cmd.add_argument(
-        "--rule", action="append", type=parse_mount_rule,
+        "--rule", action="append", type=parse_mount_rule, default=[],
         help="mount rule, see below")
 
     _unmount_cmd = subparsers.add_parser("unmount", help="unmount a device")
